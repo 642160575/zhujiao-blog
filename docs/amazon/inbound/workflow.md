@@ -55,7 +55,7 @@ tag: Amazon
 ## API调用顺序
 ### Step 1. 创建入库计划
 
-<div class="divider">入参要求</div>
+
 
 入库计划用于表示卖家打算入库到亚马逊配送网络的一批商品。通过调用 `createInboundPlan` 操作，卖家必须提供以下信息：
 
@@ -69,7 +69,7 @@ tag: Amazon
 - **数量**：入库的数量。
 - **准备/标签责任方**：决定谁负责商品的准备和标签。注意，只有在注册了 FBA 标签服务的情况下，才能选择 **AMAZON** 作为标签持有人。
 
-<div class="divider">成功返回</div>
+
 
 创建成功的响应将返回一个唯一的 `inboundPlanId`，用于标识入库计划（相当于 “工作流 ID”）。
 ::: danger
@@ -140,11 +140,11 @@ POST /inbound/fba/2024-03-20/inboundPlans
 
 
 #### Step 2a.生成包装选项（获取唯一操作标识）
-<div class="divider">入参要求</div>
+
 
 首先，先调用`generatePackingOptions`生成包装选项，卖家必须提供以下信息：
 - 入库计划Id：入库计划的唯一标识
-<div class="divider">成功返回</div>
+
 
 调用成功之后，该接口会返回一个操作Id，和冗余返回入库计划的唯一标识
 - 操作Id： 标识当前操作的 UUID
@@ -164,13 +164,13 @@ POST /inbound/fba/2024-03-20/inboundPlans/{inboundPlanId}/packingOptions
 
 #### Step 2b. 列出包装选项
 > 读者认为： 每一个包装选项就是一个针对该入库计划所有商品的包装策略，内包含不同的包装组id， 卖家只能为其计划分配一个包装选项
-<div class="divider">入参要求</div>
+
 
 在生成包装选项之后，调用`listPackingOptions`,列出Amazon为客户准备的相关包装选项，卖家必须提供以下信息：
 - 入库计划id： 入库计划的唯一标识
 - [可选]页大小：（1，20）
 - [可选]页token：每一页的token
-<div class="divider">返回响应</div>
+
 
 调用成功之后，会返回以下内容：
 - 包装选项列表：指定每个选项的包装组<id列表>、费用/折扣和支持的运输方式。
@@ -309,16 +309,140 @@ POST /inbound/fba/2024-03-20/inboundPlans/{inboundPlanId}/packingOptions/{packin
 
 ### Step 3. 提供包装箱内容信息
 
+为了提供有关每个箱子所包装物品的信息，请使用`setPackingInformation`操作。通过调用 setPackingInformation，卖家必须为每个打算入库的箱子传递以下信息：
+  - 包装组 ID
+  - 箱子内容信息来源
+  - 箱子内容（物品、物品数量、每种物品的准备/标签负责人）
+  - 箱子信息（尺寸、重量和箱子数量）
+
+调用成功之后，会返回以下内容：
+  - 操作单元id
+
+::: code-group
+```json [Request example]
+POST /inbound/fba/2024-03-20/inboundPlans/{inboundPlanId}/packingInformation
+{
+  "packageGroupings": [
+    {
+      "packingGroupId": "string",
+      "boxes": [
+        {
+          "weight": {
+            "unit": "LB",
+            "value": 0
+          },
+          "dimensions": {
+            "unitOfMeasurement": "IN",
+            "length": 0,
+            "width": 0,
+            "height": 0
+          },
+          "quantity": 1,
+          "boxId": "string",  ## 是否需要存疑 ##
+          "items": [
+            {
+              "msku": "string",
+              "quantity": 1,
+              "expiration": "string",
+              "prepOwner": "AMAZON",
+              "labelOwner": "AMAZON",
+              "manufacturingLotCode": "string"
+            }
+          ],
+          "contentInformationSource": "BOX_CONTENT_PROVIDED"
+        }
+      ]
+    }
+  ]
+}
+```
+```json [Response example]
+{
+  "operationId": "string"
+}
+```
+:::
+::: danger
+> 读者发现：在该请求的请求示例中 boxes列表中不应该出现boxId字段信息, 理由是`boxes`是文档中所提供的`BoxInput`类对象实例列表, 而`BoxInput`在原文中并不存在`boxId`的属性， 并且上下文中也没有说明该参数的数据来源。
+:::
+<div class="divider">Amazon相关要求</div>
+
+::: tip
+如果卖家使用 `setPackingInformation` 提供了箱子包装信息、生成了分配选项后，又编辑了箱子包装信息，则需要在调用 `confirmPlacementOption` 之前再次调用 `generatePlacementOptions`。如果卖家输入了箱子包装信息但之后决定完全放弃这些信息，则需要使用 `createInboundPlan` 开始一个新的入库计划。目前不支持直接放弃包装信息。
+> 也就是`setPackingInformation` -> `generatePlacementOptions` 之后， 再次调用了`setPackingInformation`修改箱子（包装组id + 入库计划id）信息， 必须再次调用`generatePlacementOptions`。
+
+> 如果想要将编辑的所有箱子信息全部放弃， 只能重头(`createInboundPlan`)开始了 
+:::
+
+::: tip
+箱子内容信息来源(`contentInformationSource`)指示卖家将如何提供箱子内的商品信息，卖家可以选择以下三种方式之一：
+
+- 填写内容字段（BOX_CONTENT_PROVIDED）
+- 向亚马逊支付费用，在接收过程中由亚马逊手动录入该信息（MANUAL_PROCESS）
+- 在箱子上贴附二维条形码（BARCODE_2D）
+
+此外，卖家还需要提供每个箱子的尺寸、重量以及箱子内商品的数量。
+> 注意：这里也没有说需要提供箱子Id，说明箱子ID是在这一步骤之后生成的（Amazon提供）。
+
+当 boxAttribute 设置为 BARCODE_2D 或 MANUAL_PROCESS 时：
+
+- 无需提供 SKU 和数量。
+- 商品字段必须留空（设置为 null）。
+
+:::
 
 
+::: tip
+在这个流程中传入`PackingGroupId`, 忽略`ShipmentId`
+
+`原文：In this flow, pass in the PackingGroupId but omit the ShipmentId.`
+:::
+
+### Step 4. 生成并查看目标配送中心选项
+
+> 这里梳理的内容和官方文档中所提供的图中步骤不一致， 本文将`listPlacementOptions` 接口列入第4步骤。
+
+> Amazon 会依据装箱信息，将不同的箱子根据情况分配到不同的配送中心，即便是同一批次的商品，不同的配送中心可能会有不同的入库时间、运输方式、以及接收的数量。因此，对于每个配送中心，亚马逊会生成一个独立的 shipmentId。所以该接口也会返回一组shipmentId
+
+>假设你有一个入库计划，其中包括 100 件商品 A 和 50 件商品 B。根据亚马逊的算法，商品 A 可能会被分配到两个不同的配送中心：50 件发往东部仓库，50 件发往西部仓库；而商品 B 则可能只需要一个配送中心，可能发往中部的仓库。
+> - 结果：你会收到多个 shipmentId，分别对应东部、西亚和中部的配送中心。
 
 
+这一步骤是为了帮助亚马逊卖家生成和查看将商品分配到不同亚马逊配送中心（Fulfillment Centers, FCs）的选项，从而优化商品的配送和库存管理。
+为了完成以上要求所需要依次调用以下接口：
+
+- `generatePlacementOptions`
+- `listPlacementOptions `
 
 
+#### Step 4a. 生成配送中心选项
+> 这一步骤，Amazon根据以上传入的信息生成配送策略选项。返回一个操作ID，使得卖家可以通过`listPlacementOptions`查看配送中心可选择列表。
+
+要生成配送中心选项，卖家必须提供以下信息：
+- 入库计划Id： 入库计划的唯一标识
 
 
+:::code-group
+```json[Request example]
+POST /inbound/fba/2024-03-20/inboundPlans/{inboundPlanId}/placementOptions
+{
+}
+```
 
+```json [Response example]
+{
+  "operationId": "string"
+}
+```
+:::
+> 请求示例中的 冗余的括弧，并不是错误。是因为该接口可以传一个`GeneratePlacementOptionsRequest` 对象， 该对象的值仅对印度地区市场有用。没有详细看。
 
+::: tip
+一个入库计划id可能会根据亚马逊的算法生成多个`shipmentId`，这里的`shipmentId`（38位的字符串）和调用`confirmPlacementOption`接口返回的`shipmentConfirmationID`(`for example, FBA1234ABCD`)不是一个东西
+:::
+::: danger
+`shipmentId`同样是一个重要的参数，它将在后续的入库工作流中作为必传参数。
+:::
 
 
 
