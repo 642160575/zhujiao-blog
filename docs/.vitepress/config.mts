@@ -44,6 +44,11 @@ export default defineConfig({
       { text: '日常', items: [
         { text: '游戏', link: '/game/index' },
       ] },
+      {
+        text: '我的半年计划', items: [
+          { text: '英语口语学习', link: '/half-plans/index' },
+        ]
+      },
       { text: '后端', items: [
         { text: 'Django', link: '/后端/index' },
       ] },
