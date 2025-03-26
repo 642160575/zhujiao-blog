@@ -49,6 +49,11 @@ export default defineConfig({
           { text: '英语口语学习', link: '/half-plans/index' },
         ]
       },
+        {
+            text: 'AI学习', items: [
+                {text: 'LangChain', link: '/ai/LangChain/index'}
+                ]
+        },
       { text: '后端', items: [
         { text: 'Django', link: '/后端/index' },
       ] },

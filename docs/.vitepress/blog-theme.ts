@@ -43,7 +43,7 @@ const blogTheme = getThemeConfig({
   },
 
   // 主题色修改
-  themeColor: 'el-blue',
+  themeColor: 'el-red',
 
   // 文章默认作者
   author: '主教',
