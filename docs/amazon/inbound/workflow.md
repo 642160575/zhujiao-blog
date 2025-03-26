@@ -1,5 +1,6 @@
 ---
 tag: Amazon
+date: 2024-12-26 14:33:09
 ---
 
 
@@ -174,7 +175,7 @@ POST /inbound/fba/2024-03-20/inboundPlans/{inboundPlanId}/packingOptions
 
 调用成功之后，会返回以下内容：
 - 包装选项列表：指定每个选项的包装组<id列表>、费用/折扣和支持的运输方式。
-- 下一页的token：用于查询下一页的可选列表。
+- 下一页的token
 
 :::code-group
 ```json[Request example]
@@ -338,7 +339,6 @@ POST /inbound/fba/2024-03-20/inboundPlans/{inboundPlanId}/packingInformation
             "height": 0
           },
           "quantity": 1,
-          "boxId": "string",  ## 是否需要存疑 ##
           "items": [
             {
               "msku": "string",
