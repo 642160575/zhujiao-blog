@@ -51,7 +51,8 @@ export default defineConfig({
       },
         {
             text: 'AI学习', items: [
-                {text: 'LangChain', link: '/ai/LangChain/index'}
+                {text: 'LangChain', link: '/ai/LangChain/index'},
+                {text: 'MCP', link: '/ai/mcp/index'}
                 ]
         },
       { text: '后端', items: [
